@@ -1,0 +1,30 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - name: build
+        run: |
+          scripts/build dist
+          strip dist/mac-tts
+          codesign --force --sign - dist/mac-tts
+          dist/mac-tts --help >/dev/null
+          lipo -info dist/mac-tts
+          tar -czf mac-tts-macos-arm64.tar.gz -C dist mac-tts mlx.metallib
+          shasum -a 256 mac-tts-macos-arm64.tar.gz > mac-tts-macos-arm64.tar.gz.sha256
+      - name: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes \
+            mac-tts-macos-arm64.tar.gz mac-tts-macos-arm64.tar.gz.sha256

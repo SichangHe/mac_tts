@@ -4,6 +4,8 @@
 Local text to speech on Apple Silicon Macs: the server's Kokoro-82M (`af_heart`, Mandarin runs `zf_xiaobei`) run on the GPU through MLX/Metal, via [mlx-audio-swift](https://github.com/Blaizzy/mlx-audio-swift).
 Counterpart of [mac_stt](https://github.com/SichangHe/mac_stt).
 
+Install (Apple Silicon, macOS 14+): `curl -fsSL https://raw.githubusercontent.com/SichangHe/mac_tts/main/install.sh | sh`
+
 - `mac-tts "text"` or `echo text | mac-tts`: speak aloud
 - `mac-tts -o out.wav "text"`: write a 24 kHz WAV
 - `mac-tts --lines DIR`: load the model once; each stdin line becomes `DIR/N.wav`, path printed on stdout after `ready`

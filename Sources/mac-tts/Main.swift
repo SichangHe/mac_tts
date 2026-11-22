@@ -28,15 +28,32 @@ func splitChinese(_ text: String) -> [(Bool, String)] {
     return pieces
 }
 
+/// `text` cut at sentence ends (then commas, then spaces) into pieces of at most `limit` characters:
+/// Kokoro takes at most 510 phoneme tokens per call, and the server's pipeline splits long text the same way.
+func sentences(_ text: String, limit: Int = 200) -> [String] {
+    var out: [String] = [], cur = ""
+    func flush() { let t = cur.trimmingCharacters(in: .whitespacesAndNewlines); if !t.isEmpty { out.append(t) }; cur = "" }
+    for ch in text {
+        cur.append(ch)
+        if ".!?;。！？；\n".contains(ch) { flush() }
+        else if cur.count >= limit, ",，、 ".contains(ch) { flush() }
+        else if cur.count >= limit * 2 { flush() }
+    }
+    flush()
+    return out
+}
+
 // 🧑 "use pretty much the same thing as the server currently uses"
 /// Speak `text` into one 24 kHz mono waveform, like the server's `speak`.
 func synthesize(_ model: SpeechGenerationModel, _ text: String) async throws -> [Float] {
     var samples: [Float] = []
     for (isChinese, run) in splitChinese(text) {
-        let audio = try await model.generate(
-            text: run, voice: isChinese ? "zf_xiaobei" : "af_heart",
-            refAudio: nil, refText: nil, language: nil)
-        samples += audio.asArray(Float.self)
+        for piece in sentences(run, limit: isChinese ? 80 : 200) {
+            let audio = try await model.generate(
+                text: piece, voice: isChinese ? "zf_xiaobei" : "af_heart",
+                refAudio: nil, refText: nil, language: nil)
+            samples += audio.asArray(Float.self)
+        }
     }
     return samples
 }
