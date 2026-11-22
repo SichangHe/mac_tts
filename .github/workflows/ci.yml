@@ -1,0 +1,28 @@
+name: ci
+on: [push, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - run: scripts/build dist
+      - run: dist/mac-tts --help
+      - uses: actions/upload-artifact@v4
+        with: {name: dist, path: "dist/mac-tts\ndist/mlx.metallib"}
+  # GitHub hosts no macOS 14 runners; macOS 15 with Metal 3.1 kernels stands in for the human's macOS 14.
+  e2e:
+    needs: build
+    runs-on: macos-15
+    timeout-minutes: 60
+    env: {MAC_TTS_METAL_3_1: "1"}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with: {name: dist, path: dist}
+      - run: chmod +x dist/mac-tts && scripts/e2e out dist/mac-tts
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with: {name: e2e, path: out}

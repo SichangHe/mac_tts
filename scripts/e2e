@@ -1,0 +1,24 @@
+#!/bin/sh
+# Speaks English, Mandarin, mixed, and long text; checks each WAV has audio and times the persistent `--lines` mode.
+# usage: scripts/e2e OUT_DIR MAC_TTS_BINARY
+set -eu
+out=$1 bin=$2
+mkdir -p "$out"
+dur() { afinfo "$1" | awk '/estimated duration/ {print $3}'; }
+check() { d=$(dur "$1"); echo "$1: ${d}s"; awk -v d="$d" -v m="$2" 'BEGIN {exit !(d >= m)}' || { echo "too short: $1" >&2; exit 1; }; }
+t0=$(date +%s)
+"$bin" -o "$out/en.wav" "Hello, this is the Mac text to speech test."
+echo "cold one-shot: $(( $(date +%s) - t0 ))s"
+check "$out/en.wav" 1.5
+echo "你好，这是中文语音合成测试。" | "$bin" -o "$out/zh.wav"
+check "$out/zh.wav" 1.5
+"$bin" -o "$out/mixed.wav" "The server runs Kokoro, 也就是说中文也可以, and English again."
+check "$out/mixed.wav" 3
+long=$(printf 'This sentence is repeated to make a long paragraph that exceeds one model window. %.0s' $(seq 12))
+"$bin" -o "$out/long.wav" "$long"
+check "$out/long.wav" 40
+printf '%s\n' "First line." "第二行。" "Third line, a bit longer than the others." >"$out/lines.txt"
+"$bin" --lines "$out/lines" <"$out/lines.txt" | while read -r p; do
+    perl -MTime::HiRes=time -e "printf qq(%.2f %s\n), time, shift" "$p"
+done | tee "$out/lines.log"
+for f in 0 1 2; do check "$out/lines/$f.wav" 0.5; done
